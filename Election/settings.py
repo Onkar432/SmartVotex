@@ -129,7 +129,7 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_ADDRESS = 'pathakonkar04@gmail.com'
-EMAIL_PASSWORD = 'blfu dxml odbv skhi'
+EMAIL_PASSWORD = 'rtgrtgrtgvrtgvri'
 
 TRANSACTIONS_PER_BLOCK = 1
 
