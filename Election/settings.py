@@ -120,9 +120,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-# EMAIL_ADDRESS = 'pathakonkar04@gmail.com'
-# EMAIL_PASSWORD = 'onkar@2807'
-# settings.py
+
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
