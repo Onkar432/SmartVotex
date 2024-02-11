@@ -127,7 +127,7 @@ def send_otp(request):
     # Email configuration
     sender_email = "pathakonkar04@gmail.com"
     receiver_email = request.GET.get('email-id')
-    password = "blfu dxml odbv skhi"
+    password = "egrvervdgbrtgtr"
     smtp_server = "smtp.gmail.com"
     smtp_port = 587  # Change this according to your SMTP server configuration
 
