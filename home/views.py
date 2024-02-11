@@ -1,3 +1,6 @@
+from sendgrid.helpers.mail import Mail
+from sendgrid import SendGridAPIClient
+import os
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
 from django.template import loader
@@ -5,6 +8,9 @@ from django.forms.models import model_to_dict
 from django.contrib import messages
 from django.conf import settings
 from django.utils import timezone
+
+from django.conf import settings
+from django.core.mail import send_mail
 
 from .models import Voters, PoliticalParty, Vote, VoteBackup, Block, MiningInfo
 from .methods_module import send_email_otp, generate_keys, verify_vote, send_email_private_key, vote_count
@@ -17,7 +23,12 @@ import time
 import random
 import string
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 ts_data = {}
+
 
 # Create your views here.
 
@@ -26,35 +37,6 @@ ts_data = {}
 
 def home(request):
     return render(request, 'home.html')
-
-# --------------- Authentication -------------------
-# def authentication(request):
-
-#     aadhar_no = request.GET.get('aadhar_no')
-#     print(aadhar_no)
-
-#     details = {'success': False}
-
-#     try:
-#         voter = Voters.objects.get(uuid = aadhar_no)
-#         request.session['uuid'] = aadhar_no
-#         render_html = loader.render_to_string('candidate_details.html', {'details': voter})
-#         if voter.vote_done:
-#             details = {
-#                 'error': 'You have already casted your vote.'
-#             }
-#         else:
-#             details = {
-#                 'success': True,
-#                 'html': render_html,
-#                 'details': model_to_dict(voter)
-#             }
-#     except:
-#         details = {
-#             'error': 'Invalid Aadhar, Please Enter Correct Aadhar Number!'
-#         }
-
-#     return JsonResponse(details)
 
 
 def authentication(request):
@@ -91,66 +73,123 @@ def authentication(request):
 # --------- Send otp for email verfication -----------
 
 
+def generate_otp():
+    return str(random.randint(1000, 9999))
+
+# def send_otp(request):
+#     # Generate OTP
+#     otp = generate_otp()
+
+#     # Store OTP in session
+#     request.session['otp'] = otp
+
+#     # Email configuration
+#     sender_email = "pathakonkar04@gmail.com"
+#     receiver_email = request.GET.get('email-id')
+#     password = "blfu dxml odbv skhi"
+#     smtp_server = "smtp.gmail.com"
+#     smtp_port = 587  # Change this according to your SMTP server configuration
+
+#     # Create message body with OTP
+#     body = f"This is a test email sent from Python. Your OTP is: {otp}"
+
+#     # Create a message
+#     message = MIMEMultipart()
+#     message['From'] = sender_email
+#     message['To'] = receiver_email
+#     message['Subject'] = "Your OTP for verification"
+
+#     # Add body to the email
+#     message.attach(MIMEText(body, 'plain'))
+
+#     # Establish a connection with the SMTP server
+#     server = smtplib.SMTP(smtp_server, smtp_port)
+#     server.starttls()  # Secure the connection
+#     server.login(sender_email, password)
+
+#     # Send the email
+#     server.sendmail(sender_email, receiver_email, message.as_string())
+
+#     # Close the connection
+#     server.quit()
+
+#     # Return success message
+#     return JsonResponse({'success': True, 'message': 'OTP sent successfully'})
+
+
 def send_otp(request):
-    email_input = request.GET.get('email-id')
-    print(email_input)
+    # Generate OTP
+    otp = generate_otp()
 
-    # [success, result] = send_email_otp(email_input)
-    [success, result] = [True, '0']
+    # Store OTP in session
+    request.session['otp'] = otp
 
-    json = {'success': success}
-    if success:
-        request.session['otp'] = result
-        request.session['email-id'] = email_input
-        request.session['email-verified'] = False
-    else:
-        json['error'] = result
+    # Email configuration
+    sender_email = "pathakonkar04@gmail.com"
+    receiver_email = request.GET.get('email-id')
+    password = "blfu dxml odbv skhi"
+    smtp_server = "smtp.gmail.com"
+    smtp_port = 587  # Change this according to your SMTP server configuration
 
-    return JsonResponse(json)
+    # Create message body with OTP (both text and HTML)
+    text_body = f"Dear Voter,\n\nYou are receiving this email as part of the voting process. Your One-Time Password (OTP) for verification is: {otp}\n\nPlease enter this OTP on the voting platform to complete the verification process.\n\nThank you for your participation!\n\nSincerely,\nThe Election Team"
+
+    html_body = f"""
+    <html>
+        <body>
+            <p>Dear Voter,</p>
+            <p>You are receiving this email as part of the voting process. Your One-Time Password (OTP) for verification is: <strong>{otp}</strong></p>
+            <p>Please enter this OTP on the voting platform to complete the verification process.</p>
+            <p>Thank you for your participation!</p>
+            <p>Sincerely,<br/>The Election Team</p>
+        </body>
+    </html>
+    """
+
+    # Create a multipart message
+    message = MIMEMultipart()
+    message['From'] = sender_email
+    message['To'] = receiver_email
+    message['Subject'] = "Your OTP for Voting Verification"
+
+    # Attach both text and HTML versions of the body
+    message.attach(MIMEText(text_body, 'plain'))
+    message.attach(MIMEText(html_body, 'html'))
+
+    # Establish a connection with the SMTP server
+    server = smtplib.SMTP(smtp_server, smtp_port)
+    server.starttls()  # Secure the connection
+    server.login(sender_email, password)
+
+    # Send the email
+    server.sendmail(sender_email, receiver_email, message.as_string())
+
+    # Close the connection
+    server.quit()
+
+    # Return success message
+    return JsonResponse({'success': True, 'message': 'OTP sent successfully'})
+
 
 # -------- Verify email with provided otp ----------
-
-
 def verify_otp(request):
-
     otp_input = request.GET.get('otp-input')
-    json = {'success': False}
-    if otp_input == request.session['otp']:
+    json_response = {'success': False}
+
+    # Check if OTP input matches the one stored in session
+    if otp_input == request.session.get('otp'):
+        # If OTP is verified, update voter's email in the database
         voter = Voters.objects.get(uuid=request.session['uuid'])
         voter.email = request.session['email-id']
         voter.save()
-        json['success'] = True
+        # Set success flag to true
+        json_response['success'] = True
+        # Optionally, you can set a flag to indicate that email is verified
         request.session['email-verified'] = True
 
-    return JsonResponse(json)
-
-# --------- On successful email verfication show all parties options ----------
+    return JsonResponse(json_response)
 
 
-# def get_parties(request):
-
-#     party_list = {}
-#     if request.session['email-verified']:
-
-#         private_key, public_key = generate_keys()
-
-#         # send_email_private_key(request.session['email-id'], private_key)
-#         print(private_key)
-
-#         request.session['public-key'] = public_key
-
-#         parties = list(PoliticalParty.objects.all())
-#         parties = [model_to_dict(party) for party in parties]
-
-#         render_html = loader.render_to_string(
-#             'voting.html', {'parties': parties})
-
-#         party_list = {
-#             'html': render_html,
-#             'parties': parties
-#         }
-
-#     return JsonResponse(party_list)
 def get_parties(request):
     party_list = {}
 
